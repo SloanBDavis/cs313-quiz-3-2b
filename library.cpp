@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <thread>
+#include <vector>
 
 using namespace std;
 
@@ -23,7 +24,11 @@ condition_variable checkout_ready;
 */
 void books_checkout(int quantity)
 {
-
+    std::unique_lock lock(mut);
+    while(books_available < quantity){
+        checkout_ready.wait(lock);
+    }
+    books_available -= quantity;
 }
 
 /* TODO:
@@ -34,7 +39,9 @@ void books_checkout(int quantity)
  */
 void books_checkin(int quantity)
 {
-
+    std::lock_guard lock(mut);
+    books_available += quantity;
+    checkout_ready.notify_one();
 }
 
 /**
@@ -61,8 +68,14 @@ int main()
     thread *student_threads = new thread[6];
 
     /*TODO: Create the six student threads that will use the function (manager) for a respective number of books (cart[i])*/
-
+    std::vector<std::thread> threads_vec;
+    for(int i = 0; i < 6; i++){
+        threads_vec.push_back(std::thread(manager, i, cart[i]));
+    }
     /*TODO: Wait for all the six threads*/
+    for(int i = 0; i < 6; i++){
+        threads_vec.at(i).join();
+    }
 
     delete[] student_threads;
     return 0;
